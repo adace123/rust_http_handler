@@ -42,7 +42,7 @@ impl HttpRequest {
             headers: header_dict,
             body: body.trim().to_string()
         })
-    // println!("{:?}", body.as_bytes().iter().all(|&x| x == 0));
+
     }
 
     fn read_request(stream: &mut TcpStream) -> HttpRequest {
@@ -54,6 +54,15 @@ impl HttpRequest {
 
     pub fn new(stream: &mut TcpStream) -> HttpRequest {
         HttpRequest::read_request(stream)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        let empty_body = self.body.as_bytes().iter().all(|&x| x == 0);
+        
+        match self.method.as_str() {
+            "POST" if !empty_body => true,
+            _ => false
+        }
     }
     
 }
@@ -70,7 +79,7 @@ mod tests {
                             Content-Type: application/json\r\n\r\n
                             {'hello': 'world!'}";
         let request = HttpRequest::parse_request(&test_request).unwrap();
-        
+        assert!(request.is_valid());
         assert_eq!(request.method, "POST".to_string());
         assert_eq!(request.uri, "/".to_string());
 
