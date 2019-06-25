@@ -1,5 +1,5 @@
 [package]
-name = "http_uppercaserer"
+name = "http_handler"
 version = "0.1.0"
 authors = ["aaron.feigenbaum <rexforddrive@gmail.com>"]
 edition = "2018"

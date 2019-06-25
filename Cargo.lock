@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "http_uppercaserer"
+name = "http_handler"
 version = "0.1.0"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
