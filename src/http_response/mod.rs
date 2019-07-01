@@ -5,12 +5,13 @@ use std::net::TcpStream;
 use std::io::{Write};
 use chrono::Utc;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Status {
     Ok,
     NotFound,
     BadRequest,
-    MethodNotAllowed
+    MethodNotAllowed,
+    NoContent
 }
 
 #[derive(Debug)]
@@ -25,7 +26,8 @@ impl std::fmt::Display for Status {
             Status::Ok => write!(f, "200 OK"),
             Status::NotFound => write!(f, "404 Not Found"),
             Status::BadRequest => write!(f, "400 Bad Request"),
-            Status::MethodNotAllowed => write!(f, "405 Method Not Allowed")
+            Status::MethodNotAllowed => write!(f, "405 Method Not Allowed"),
+            Status::NoContent => write!(f, "204 No Content")
         }
     }
 }
@@ -43,7 +45,7 @@ impl<'a> HttpResponse<'a> {
         format!("Date: {}\r\nServer: Rust\r\nContent-Type: application/text\r\nConnection: Closed\r\n\r\n", &formatted_date)
     }
 
-    pub fn send(&mut self, status: Status, content: String) {
+    pub fn send(&mut self, status: Status, content: String) -> Status {
         let response = format!(
             "HTTP/1.1 {}\r\nContent-Length: {}\r\n{}{}", 
             status, 
@@ -52,5 +54,10 @@ impl<'a> HttpResponse<'a> {
             content
         );
         write!(self.stream, "{}", response.trim()).unwrap();
+        status
+    }
+
+    pub fn handle_error(&mut self, status: Status) -> Status {
+        self.send(status, format!("Error {}", status))
     }
 }

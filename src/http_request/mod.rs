@@ -20,12 +20,12 @@ impl HttpRequest {
         let parts: Vec<&str> = raw_request.split("\r\n\r\n").take(2).collect();
         
         let (headers, body) = (parts[0].to_owned(), parts[1].to_owned());
-        let re = Regex::new(r#"^(?P<method>[A-Z]+)\s(?P<path>.+)\sHTTP"#).unwrap();
+        let re = Regex::new(r#"^(?P<method>[A-Z]+)\s(?P<path>.+)\sHTTP"#)?;
         let (method, uri) = re.captures(&headers).and_then(|cap| {
-            Some((cap.name("method").unwrap().as_str(), cap.name("path").unwrap().as_str()))
+            Some((cap.name("method").unwrap().as_str(), cap.name("path")?.as_str()))
         }).unwrap();
     
-        let header_re = Regex::new(r#"(?P<key>.+):\s+(?P<value>.+)\r?\n?"#).unwrap();
+        let header_re = Regex::new(r#"(?P<key>.+):\s+(?P<value>.+)\r?\n?"#)?;
         let header_dict: HashMap<String, String> = header_re.captures_iter(&headers.to_owned())
             .filter_map(|cap| {
                 match (cap.name("key"), cap.name("value")) {
@@ -45,24 +45,15 @@ impl HttpRequest {
 
     }
 
-    fn read_request(stream: &mut TcpStream) -> HttpRequest {
+    pub fn new(stream: &mut TcpStream) -> Result<HttpRequest, Box<Error>> {
         let mut buf = vec![0; 512];
         stream.read(&mut buf).expect("Error reading raw request stream");
         let raw_request = String::from_utf8(buf).expect("Error converting stream to string");
-        HttpRequest::parse_request(&raw_request).expect("Error parsing request")
+        HttpRequest::parse_request(&raw_request)
     }
 
-    pub fn new(stream: &mut TcpStream) -> HttpRequest {
-        HttpRequest::read_request(stream)
-    }
-
-    pub fn is_valid(&self) -> bool {
-        let empty_body = self.body.as_bytes().iter().all(|&x| x == 0);
-        
-        match self.method.as_str() {
-            "POST" if !empty_body => true,
-            _ => false
-        }
+    pub fn is_empty_body(&self) -> bool {
+        self.body.as_bytes().iter().all(|&x| x == 0)
     }
     
 }
@@ -79,7 +70,7 @@ mod tests {
                             Content-Type: application/json\r\n\r\n
                             {'hello': 'world!'}";
         let request = HttpRequest::parse_request(&test_request).unwrap();
-        assert!(request.is_valid());
+        assert!(!request.is_empty_body());
         assert_eq!(request.method, "POST".to_string());
         assert_eq!(request.uri, "/".to_string());
 

@@ -1,54 +1,49 @@
+use std::net::TcpStream;
 use super::http_request::HttpRequest;
 use super::http_response::{HttpResponse, Status};
 
-pub trait RequestHandler {
-    fn handle_request(&self, request: HttpRequest, response: &mut HttpResponse);
+pub struct RequestHandler {}
 
-    fn handle_error(&self, status: Status, response: &mut HttpResponse) {
-        response.send(status, format!("Error {}", status));        
-    }
+trait RouteHandler {
+    fn handle_route(&self, request: HttpRequest, response: &mut HttpResponse) -> Status;
 }
 
 struct HttpUpperCaseHandler {}
 
-struct BadRequestHandler {}
-
-struct MethodNotSupported {}
-
-struct NotFound {}
-
-impl RequestHandler for HttpUpperCaseHandler {
-    fn handle_request(&self, request: HttpRequest, response: &mut HttpResponse) {
-        response.send(Status::Ok, request.body.to_ascii_uppercase());
+impl RouteHandler for HttpUpperCaseHandler {
+    fn handle_route(&self, request: HttpRequest, response: &mut HttpResponse) -> Status {
+        response.send(Status::Ok, request.body.trim().to_ascii_uppercase())
     }
 }
 
-impl RequestHandler for BadRequestHandler {
-    fn handle_request(&self, request: HttpRequest, response: &mut HttpResponse) {
-        response.send(Status::BadRequest, format!("Error {}", Status::BadRequest));
-    }
-}
+impl RequestHandler {
 
-impl RequestHandler for MethodNotSupported {
-    fn handle_request(&self, request: HttpRequest, response: &mut HttpResponse) {
-        response.send(Status::MethodNotAllowed, format!("Error {}", Status::MethodNotAllowed));
-    }
-}
+    pub fn handle_request(&self, stream: &mut TcpStream) {
+        let request = HttpRequest::new(stream);
+        let response = &mut HttpResponse::new(stream);
 
-impl RequestHandler for NotFound {
-    fn handle_request(&self, request: HttpRequest, response: &mut HttpResponse) {
-        response.send(Status::NotFound, format!("Error {}", Status::NotFound));
-    }
-}
-
-pub fn route_handler(route: &str, method: &str) -> Box<RequestHandler> {
-    match method {
-        "POST" => {
-            match route {
-                "/upper" => Box::new(HttpUpperCaseHandler{}),
-                _ => Box::new(NotFound{})
+        let status: Status = request.map(|req| {
+            match req.method.as_str() {
+                "POST" | "GET" => {
+                    match req.uri.as_str() {
+                        "/upper" => {
+                            HttpUpperCaseHandler{}.handle_route(req, response)
+                        },
+                        _ => Status::NotFound
+                    }
+                },
+                _ => Status::MethodNotAllowed
             }
-        },
-        _ => Box::new(MethodNotSupported{})
+        }).unwrap_or_else(|_| Status::BadRequest);
+
+        if status != Status::Ok {
+            response.handle_error(status);
+        }
+
     }
+
+    pub fn new() -> RequestHandler {
+        RequestHandler {}
+    }
+
 }
