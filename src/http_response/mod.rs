@@ -59,8 +59,8 @@ impl<'a> HttpResponse<'a> {
         status
     }
 
-    pub fn handle_error(&mut self, status: Status, error_str: &str) -> Status {
-        error!("Error status {} {}", status, error_str);
+    pub fn handle_error(&mut self, status: Status) -> Status {
+        error!("Error status {}", status);
         self.send(status, format!("Error {}", status))
     }
 }
