@@ -1,9 +1,11 @@
 extern crate chrono;
 extern crate regex;
+extern crate log;
 
 use std::net::TcpStream;
 use std::io::{Write};
 use chrono::Utc;
+use log::error;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Status {
@@ -53,11 +55,12 @@ impl<'a> HttpResponse<'a> {
             self.response_headers, 
             content
         );
-        write!(self.stream, "{}", response.trim()).unwrap();
+        write!(self.stream, "{}", response).unwrap();
         status
     }
 
-    pub fn handle_error(&mut self, status: Status) -> Status {
+    pub fn handle_error(&mut self, status: Status, error_str: &str) -> Status {
+        error!("Error status {} {}", status, error_str);
         self.send(status, format!("Error {}", status))
     }
 }
